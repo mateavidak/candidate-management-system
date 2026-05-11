@@ -9,12 +9,22 @@ namespace CandidateManagementSystem.Api.Controllers;
 public class CandidatesController(ICandidateService candidateService) : ControllerBase
 {
     [HttpGet]
+    public async Task<IActionResult> GetAll(CancellationToken ct)
+    {
+        var candidates = await candidateService.SearchAsync(
+            new CandidateSearchRequest(null, null, null),
+            ct);
+        return Ok(candidates);
+    }
+
+    [HttpGet("search")]
     public async Task<IActionResult> Search(
         [FromQuery] string? name,
         [FromQuery] List<int>? skillIds,
+        [FromQuery] List<string>? skillNames,
         CancellationToken ct)
     {
-        var request = new CandidateSearchRequest(name, skillIds);
+        var request = new CandidateSearchRequest(name, skillIds, skillNames);
         var candidates = await candidateService.SearchAsync(request, ct);
         return Ok(candidates);
     }

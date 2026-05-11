@@ -10,16 +10,47 @@ public class CandidateService(ApplicationDbContext db) : ICandidateService
 {
     public async Task<IReadOnlyList<CandidateResponse>> SearchAsync(CandidateSearchRequest request, CancellationToken ct = default)
     {
-        var query = db.Candidates.Include(c => c.Skills).AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(request.Name))
-            query = query.Where(c => EF.Functions.ILike(c.FullName, $"%{request.Name.Trim()}%"));
+        var requiredSkillIds = new HashSet<int>();
 
         if (request.SkillIds is { Count: > 0 })
         {
-            foreach (var skillId in request.SkillIds)
-                query = query.Where(c => c.Skills.Any(s => s.Id == skillId));
+            foreach (var id in request.SkillIds)
+                requiredSkillIds.Add(id);
         }
+
+        var distinctSkillNames = (request.SkillNames ?? [])
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (distinctSkillNames.Count > 0)
+        {
+            var nameArray = distinctSkillNames.ToArray();
+            var matchedIds = await db.Skills.AsNoTracking()
+                .Where(s => nameArray.Contains(s.Name))
+                .Select(s => s.Id)
+                .Distinct()
+                .ToListAsync(ct);
+
+            if (matchedIds.Count != distinctSkillNames.Count)
+                return [];
+
+            foreach (var id in matchedIds)
+                requiredSkillIds.Add(id);
+        }
+
+        var query = db.Candidates.Include(c => c.Skills).AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(request.Name))
+        {
+            var term = request.Name.Trim().Replace("%", string.Empty).Replace("_", string.Empty);
+            if (term.Length > 0)
+                query = query.Where(c => EF.Functions.ILike(c.FullName, $"%{term}%"));
+        }
+
+        foreach (var skillId in requiredSkillIds)
+            query = query.Where(c => c.Skills.Any(s => s.Id == skillId));
 
         return await query
             .OrderBy(c => c.FullName)
