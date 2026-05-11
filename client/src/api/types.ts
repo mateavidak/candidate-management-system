@@ -28,4 +28,6 @@ export interface CreateSkillRequest {
 export interface ApiErrorBody {
   code?: string
   message?: string
+  title?: string
+  errors?: Record<string, string[]>
 }

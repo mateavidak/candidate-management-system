@@ -1,22 +1,48 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createCandidate } from '../api/candidatesApi'
 import type { CreateCandidateRequest } from '../api/types'
 import { ApiRequestError } from '../api/http'
 import { CandidateForm } from '../components/CandidateForm'
+import {
+  mapAspNetValidationErrors,
+  validationErrorsSummary,
+  type CandidateFieldErrors,
+} from '../validation/candidateRequest'
+
+const emptyInitial = {
+  fullName: '',
+  dateOfBirth: '1995-01-01',
+  contactNumber: '',
+  email: '',
+} as const
 
 export function CandidateNewPage() {
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [remoteFieldErrors, setRemoteFieldErrors] = useState<CandidateFieldErrors | null>(null)
+
+  const initialForm = useMemo(() => ({ ...emptyInitial }), [])
 
   const onSubmit = async (body: CreateCandidateRequest) => {
     setBusy(true)
     setError(null)
+    setRemoteFieldErrors(null)
     try {
       const created = await createCandidate(body)
       navigate(`/candidates/${created.id}`)
     } catch (e) {
+      if (e instanceof ApiRequestError && e.status === 400 && e.body?.errors) {
+        const mapped = mapAspNetValidationErrors(e.body.errors)
+        if (Object.keys(mapped).length > 0) {
+          setRemoteFieldErrors(mapped)
+          return
+        }
+        const summary = validationErrorsSummary(e.body.errors)
+        setError(summary || e.message)
+        return
+      }
       setError(e instanceof ApiRequestError ? e.message : 'Could not create candidate.')
     } finally {
       setBusy(false)
@@ -43,16 +69,13 @@ export function CandidateNewPage() {
 
       <section className="panel">
         <CandidateForm
-          initial={{
-            fullName: '',
-            dateOfBirth: '1995-01-01',
-            contactNumber: '',
-            email: '',
-          }}
+          initial={initialForm}
           submitLabel="Create candidate"
           onSubmit={onSubmit}
           onCancel={() => navigate('/candidates')}
           busy={busy}
+          remoteFieldErrors={remoteFieldErrors}
+          onRemoteFieldErrorsConsumed={() => setRemoteFieldErrors(null)}
         />
       </section>
     </div>

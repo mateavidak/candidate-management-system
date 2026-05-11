@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { createSkill, deleteSkill, fetchSkills } from '../api/skillsApi'
 import type { SkillResponse } from '../api/types'
 import { ApiRequestError } from '../api/http'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import './SkillsPage.css'
 
 export function SkillsPage() {
@@ -11,6 +12,7 @@ export function SkillsPage() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ id: number; name: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -45,15 +47,17 @@ export function SkillsPage() {
     }
   }
 
-  const onDelete = async (id: number, skillName: string) => {
-    if (!window.confirm(`Delete skill “${skillName}”?`)) return
+  const performDeleteSkill = async () => {
+    if (!pendingDelete) return
     setBusy(true)
     setError(null)
     try {
-      await deleteSkill(id)
+      await deleteSkill(pendingDelete.id)
+      setPendingDelete(null)
       await load()
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : 'Could not delete skill.')
+      setPendingDelete(null)
     } finally {
       setBusy(false)
     }
@@ -121,7 +125,7 @@ export function SkillsPage() {
                         type="button"
                         className="btn btn--sm btn--danger"
                         disabled={busy}
-                        onClick={() => void onDelete(s.id, s.name)}
+                        onClick={() => setPendingDelete({ id: s.id, name: s.name })}
                       >
                         Delete
                       </button>
@@ -133,6 +137,24 @@ export function SkillsPage() {
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Remove this skill?"
+        confirmLabel="Yes, remove"
+        cancelLabel="Keep skill"
+        variant="danger"
+        busy={busy}
+        onCancel={() => !busy && setPendingDelete(null)}
+        onConfirm={() => void performDeleteSkill()}
+      >
+        {pendingDelete && (
+          <p style={{ margin: 0 }}>
+            This will permanently delete <strong>{pendingDelete.name}</strong> from the skills directory
+            and unlink it from every candidate who uses it. This action cannot be undone.
+          </p>
+        )}
+      </ConfirmDialog>
     </div>
   )
 }
