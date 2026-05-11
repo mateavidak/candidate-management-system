@@ -1,0 +1,15 @@
+.skills-page__add {
+  margin-bottom: 1.25rem;
+}
+
+.skills-page__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.skills-page__form .input {
+  flex: 1 1 240px;
+  max-width: 420px;
+}
