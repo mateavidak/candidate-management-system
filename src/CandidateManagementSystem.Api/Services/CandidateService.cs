@@ -1,6 +1,7 @@
 using CandidateManagementSystem.Api.DTOs.Candidate;
 using CandidateManagementSystem.Api.DTOs.Skill;
 using CandidateManagementSystem.Api.Entities;
+using CandidateManagementSystem.Api.Exceptions;
 using CandidateManagementSystem.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -69,12 +70,16 @@ public class CandidateService(ApplicationDbContext db) : ICandidateService
 
     public async Task<CandidateResponse> CreateAsync(CreateCandidateRequest request, CancellationToken ct = default)
     {
+        var email = request.Email.Trim();
+        if (await db.Candidates.AnyAsync(c => c.Email == email, ct))
+            throw new ApiConflictException("DuplicateEmail", "A candidate with this email already exists.");
+
         var candidate = new Candidate
         {
             FullName = request.FullName.Trim(),
             DateOfBirth = request.DateOfBirth,
             ContactNumber = request.ContactNumber.Trim(),
-            Email = request.Email.Trim()
+            Email = email
         };
 
         db.Candidates.Add(candidate);
@@ -90,10 +95,14 @@ public class CandidateService(ApplicationDbContext db) : ICandidateService
 
         if (candidate is null) return null;
 
+        var email = request.Email.Trim();
+        if (await db.Candidates.AnyAsync(c => c.Email == email && c.Id != id, ct))
+            throw new ApiConflictException("DuplicateEmail", "Another candidate already uses this email.");
+
         candidate.FullName = request.FullName.Trim();
         candidate.DateOfBirth = request.DateOfBirth;
         candidate.ContactNumber = request.ContactNumber.Trim();
-        candidate.Email = request.Email.Trim();
+        candidate.Email = email;
 
         await db.SaveChangesAsync(ct);
         return ToResponse(candidate);
@@ -118,7 +127,7 @@ public class CandidateService(ApplicationDbContext db) : ICandidateService
         if (candidate is null) return null;
 
         if (candidate.Skills.Any(s => s.Id == skillId))
-            return ToResponse(candidate);
+            throw new ApiConflictException("SkillAlreadyAssigned", "This skill is already linked to the candidate.");
 
         var skill = await db.Skills.FindAsync([skillId], ct);
         if (skill is null) return null;

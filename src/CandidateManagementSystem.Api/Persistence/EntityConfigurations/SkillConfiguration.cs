@@ -8,7 +8,10 @@ public class SkillConfiguration : IEntityTypeConfiguration<Skill>
 {
     public void Configure(EntityTypeBuilder<Skill> builder)
     {
-        builder.ToTable("Skills");
+        builder.ToTable("Skills", t =>
+        {
+            t.HasCheckConstraint("CK_Skills_Name", """btrim("Name") <> ''""");
+        });
 
         builder.HasKey(s => s.Id);
 

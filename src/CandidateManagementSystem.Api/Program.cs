@@ -1,3 +1,4 @@
+using CandidateManagementSystem.Api.Exceptions;
 using CandidateManagementSystem.Api.Persistence;
 using CandidateManagementSystem.Api.Services;
 using Microsoft.EntityFrameworkCore;
@@ -13,8 +14,11 @@ builder.Services.AddScoped<ICandidateService, CandidateService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {

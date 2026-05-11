@@ -8,7 +8,12 @@ public class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
 {
     public void Configure(EntityTypeBuilder<Candidate> builder)
     {
-        builder.ToTable("Candidates");
+        builder.ToTable("Candidates", t =>
+        {
+            t.HasCheckConstraint("CK_Candidates_FullName", """btrim("FullName") <> ''""");
+            t.HasCheckConstraint("CK_Candidates_ContactNumber", """btrim("ContactNumber") <> ''""");
+            t.HasCheckConstraint("CK_Candidates_Email", """btrim("Email") <> ''""");
+        });
 
         builder.HasKey(c => c.Id);
 
