@@ -1,5 +1,6 @@
 using CandidateManagementSystem.Api.DTOs.Skill;
 using CandidateManagementSystem.Api.Entities;
+using CandidateManagementSystem.Api.Exceptions;
 using CandidateManagementSystem.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,13 +24,11 @@ public class SkillService(ApplicationDbContext db) : ISkillService
 
     public async Task<SkillResponse> CreateAsync(CreateSkillRequest request, CancellationToken ct = default)
     {
-        var existing = await db.Skills
-            .FirstOrDefaultAsync(s => s.Name == request.Name.Trim(), ct);
+        var name = request.Name.Trim();
+        if (await db.Skills.AnyAsync(s => s.Name == name, ct))
+            throw new ApiConflictException("DuplicateSkillName", "A skill with this name already exists.");
 
-        if (existing is not null)
-            return new SkillResponse(existing.Id, existing.Name);
-
-        var skill = new Skill { Name = request.Name.Trim() };
+        var skill = new Skill { Name = name };
         db.Skills.Add(skill);
         await db.SaveChangesAsync(ct);
         return new SkillResponse(skill.Id, skill.Name);
