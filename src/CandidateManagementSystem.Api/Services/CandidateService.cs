@@ -47,7 +47,10 @@ public class CandidateService(ApplicationDbContext db) : ICandidateService
         {
             var term = request.Name.Trim().Replace("%", string.Empty).Replace("_", string.Empty);
             if (term.Length > 0)
-                query = query.Where(c => EF.Functions.ILike(c.FullName, $"%{term}%"));
+            {
+                var lowered = term.ToLowerInvariant();
+                query = query.Where(c => c.FullName.ToLower().Contains(lowered));
+            }
         }
 
         foreach (var skillId in requiredSkillIds)
